@@ -23,6 +23,12 @@ def main():
   # 구글 시트 링크로 바로 생성 (다운로드 불필요!)
   python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0"
 
+  # 특정 시트 탭 선택 (시트 이름으로)
+  python -m content_generator -i 25ctvibec.xlsx -s "25ctvibec"
+
+  # 특정 시트 탭 선택 (인덱스로, 0부터 시작)
+  python -m content_generator -i 25ctvibec.xlsx -s 1
+
   # 템플릿 지정
   python -m content_generator -i 25ctvibec.xlsx -t ct2022
 
@@ -48,6 +54,11 @@ def main():
         choices=['ct2022', 'it2023', 'auto'],
         default='ct2022',
         help='템플릿 선택 (기본: ct2022)'
+    )
+
+    parser.add_argument(
+        '-s', '--sheet',
+        help='엑셀 시트 이름 또는 인덱스 (기본: 첫 번째 시트). 예: "Sheet1" 또는 "0"'
     )
 
     parser.add_argument(
@@ -81,7 +92,13 @@ def main():
         # 1. 파싱
         input_name = args.input if is_url else Path(args.input).name
         print(f"📖 데이터 파싱 중: {input_name}")
-        course_data = parse_course_file(args.input)
+
+        # 시트 이름 처리 (숫자 문자열을 int로 변환)
+        sheet_name = args.sheet
+        if sheet_name and sheet_name.isdigit():
+            sheet_name = int(sheet_name)
+
+        course_data = parse_course_file(args.input, sheet_name)
 
         if args.verbose:
             print(f"   - 과정 코드: {course_data['course_code']}")

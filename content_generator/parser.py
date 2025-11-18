@@ -29,12 +29,14 @@ class CourseDataParser:
 
     REQUIRED_COLUMNS = ['과정명', '차시번호', '차시명', '강의영상(mp4) 링크']
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, sheet_name: Optional[str] = None):
         """
         Args:
             file_path: 엑셀/CSV 파일 경로 또는 구글 시트 URL
+            sheet_name: 엑셀 시트 이름 또는 인덱스 (None이면 첫 번째 시트)
         """
         self.file_path_or_url = file_path
+        self.sheet_name = sheet_name or 0  # 기본값: 첫 번째 시트
         self.is_url = self._is_url(file_path)
         self.file_path = None if self.is_url else Path(file_path)
         self.df: Optional[pd.DataFrame] = None
@@ -131,7 +133,28 @@ class CourseDataParser:
     def _load_from_file(self):
         """파일에서 데이터 로드"""
         if self.file_path.suffix == '.xlsx':
-            self.df = pd.read_excel(self.file_path)
+            # 엑셀 파일 - sheet_name 지정 가능
+            try:
+                self.df = pd.read_excel(self.file_path, sheet_name=self.sheet_name)
+
+                # 사용 중인 시트 이름 출력
+                if isinstance(self.sheet_name, int):
+                    excel_file = pd.ExcelFile(self.file_path)
+                    sheet_names = excel_file.sheet_names
+                    if self.sheet_name < len(sheet_names):
+                        actual_sheet_name = sheet_names[self.sheet_name]
+                        print(f"📄 시트: '{actual_sheet_name}' (인덱스 {self.sheet_name})")
+                else:
+                    print(f"📄 시트: '{self.sheet_name}'")
+
+            except ValueError as e:
+                # 시트가 없는 경우
+                excel_file = pd.ExcelFile(self.file_path)
+                available_sheets = ', '.join([f"'{s}'" for s in excel_file.sheet_names])
+                raise ValueError(
+                    f"시트를 찾을 수 없습니다: {self.sheet_name}\n"
+                    f"사용 가능한 시트: {available_sheets}"
+                )
         elif self.file_path.suffix == '.csv':
             self.df = pd.read_csv(self.file_path)
         else:
@@ -232,15 +255,16 @@ class CourseDataParser:
         return url
 
 
-def parse_course_file(file_path: str) -> Dict:
+def parse_course_file(file_path: str, sheet_name: Optional[str] = None) -> Dict:
     """
     과정 파일 파싱 (헬퍼 함수)
 
     Args:
         file_path: 엑셀 또는 CSV 파일 경로
+        sheet_name: 엑셀 시트 이름 또는 인덱스 (None이면 첫 번째 시트)
 
     Returns:
         파싱된 과정 데이터
     """
-    parser = CourseDataParser(file_path)
+    parser = CourseDataParser(file_path, sheet_name)
     return parser.parse()

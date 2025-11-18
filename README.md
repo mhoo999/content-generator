@@ -160,17 +160,25 @@ python3 -m http.server 8000
 #### Step 2: 명령어 실행
 
 ```bash
-# 기본 사용
+# 기본 사용 (첫 번째 시트 사용)
 python -m content_generator -i ~/Downloads/25ctvibec.xlsx
+
+# 특정 시트 탭 선택 (시트 이름으로)
+python -m content_generator -i ~/Downloads/25ctvibec.xlsx -s "25ctvibec"
+
+# 특정 시트 탭 선택 (인덱스로, 0부터 시작)
+python -m content_generator -i ~/Downloads/25ctvibec.xlsx -s 1
 
 # 출력 디렉토리 지정
 python -m content_generator \
   -i ~/Downloads/25ctvibec.xlsx \
+  -s "25ctvibec" \
   -o ~/IdeaProjects/contents_it/subjects
 
 # 템플릿 선택 (ct2022 또는 it2023)
 python -m content_generator \
   -i ~/Downloads/25ctvibec.xlsx \
+  -s "25ctvibec" \
   -o ~/IdeaProjects/contents_it/subjects \
   -t ct2022
 ```
@@ -193,6 +201,7 @@ python -m content_generator -i ~/Downloads/25ctvibec.csv -o ./output
 | `--input` | `-i` | ✅ | - | 입력 소스 (구글 시트 URL, 엑셀, CSV) |
 | `--output` | `-o` | ❌ | `./output` | 출력 디렉토리 경로 |
 | `--template` | `-t` | ❌ | `ct2022` | 템플릿 종류 (`ct2022`, `it2023`, `auto`) |
+| `--sheet` | `-s` | ❌ | 첫 번째 시트 | 엑셀 시트 이름 또는 인덱스 (예: `"Sheet1"`, `0`) |
 | `--dry-run` | - | ❌ | - | 실제 생성 없이 미리보기만 |
 | `--verbose` | `-v` | ❌ | - | 상세 로그 출력 |
 
@@ -210,6 +219,14 @@ python -m content_generator -i "URL" -o ~/projects/subjects
 # 템플릿 선택
 python -m content_generator -i "URL" -t it2023
 # → IT 2023 스타일 템플릿 사용
+
+# 특정 시트 선택 (시트 이름)
+python -m content_generator -i file.xlsx -s "25ctvibec"
+# → "25ctvibec" 시트 사용
+
+# 특정 시트 선택 (인덱스, 0부터 시작)
+python -m content_generator -i file.xlsx -s 1
+# → 두 번째 시트 사용
 
 # 미리보기 (파일 생성 안 함)
 python -m content_generator -i "URL" --dry-run
@@ -404,20 +421,45 @@ A: 네! 구글 시트를 수정한 후 명령어를 다시 실행하면 최신 �
 python -m content_generator -i "GOOGLE_SHEET_URL" -o ~/projects/subjects
 ```
 
-#### Q2. 여러 시트(탭)를 한 번에 처리할 수 있나요?
+#### Q2. 엑셀 파일의 여러 시트(탭) 중 특정 시트만 선택할 수 있나요?
 
-A: 현재는 한 번에 하나의 시트만 처리 가능합니다. 다른 탭을 사용하려면 `gid` 파라미터를 변경하세요:
+A: 네! `-s` 또는 `--sheet` 옵션으로 특정 시트를 선택할 수 있습니다.
 
+**방법 1: 시트 이름으로 선택**
+```bash
+python -m content_generator -i file.xlsx -s "25ctvibec"
+```
+
+**방법 2: 인덱스로 선택 (0부터 시작)**
+```bash
+# 첫 번째 시트 (기본값)
+python -m content_generator -i file.xlsx -s 0
+
+# 두 번째 시트
+python -m content_generator -i file.xlsx -s 1
+
+# 세 번째 시트
+python -m content_generator -i file.xlsx -s 2
+```
+
+**시트가 없는 경우:**
+존재하지 않는 시트를 지정하면 사용 가능한 시트 목록이 표시됩니다:
+```
+❌ 오류: 시트를 찾을 수 없습니다: Sheet99
+사용 가능한 시트: '25ctvibec', '25itcoms', 'Sheet1'
+```
+
+**구글 시트 URL의 경우:**
+URL의 `gid` 파라미터를 변경하세요:
 ```bash
 # 첫 번째 시트 (gid=0, 기본값)
 python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0"
 
-# 두 번째 시트 (gid=123456789)
+# 두 번째 시트 (gid 확인 필요)
 python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=123456789"
 ```
 
-**gid 확인 방법:**
-구글 시트에서 탭을 클릭하면 URL에 `#gid=숫자` 형태로 표시됩니다.
+**gid 확인 방법:** 구글 시트에서 탭을 클릭하면 URL에 `#gid=숫자` 형태로 표시됩니다.
 
 #### Q3. 기존 폴더가 있으면 덮어쓰나요?
 
