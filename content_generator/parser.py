@@ -127,6 +127,8 @@ class CourseDataParser:
         # CSV로 파싱
         try:
             self.df = pd.read_csv(BytesIO(response.content))
+            # 컬럼명 앞뒤 공백 제거
+            self.df.columns = self.df.columns.str.strip()
         except Exception as e:
             raise ValueError(f"CSV 파싱 실패: {e}")
 
@@ -136,6 +138,9 @@ class CourseDataParser:
             # 엑셀 파일 - sheet_name 지정 가능
             try:
                 self.df = pd.read_excel(self.file_path, sheet_name=self.sheet_name)
+
+                # 컬럼명 앞뒤 공백 제거
+                self.df.columns = self.df.columns.str.strip()
 
                 # 사용 중인 시트 이름 출력
                 if isinstance(self.sheet_name, int):
@@ -157,6 +162,8 @@ class CourseDataParser:
                 )
         elif self.file_path.suffix == '.csv':
             self.df = pd.read_csv(self.file_path)
+            # 컬럼명 앞뒤 공백 제거
+            self.df.columns = self.df.columns.str.strip()
         else:
             raise ValueError(f"지원하지 않는 파일 형식: {self.file_path.suffix}")
 
