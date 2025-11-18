@@ -79,33 +79,22 @@ class ContentGenerator:
 
     def _create_subjects_json(self):
         """subjects.json 생성"""
-        chapters = self.course_data['chapters']
+        # 각 차시마다 별도의 subject로 생성 (25itcoms 형식)
+        subjects = []
 
-        if chapters:
-            # 챕터가 있는 경우
-            subjects_data = {
-                "subjects": [
-                    {
-                        "title": chapter['name'],
-                        "lists": [
-                            f"{lesson_num} {self._get_lesson_title(lesson_num)}"
-                            for lesson_num in chapter['lessons']
-                        ]
-                    }
-                    for chapter in chapters
-                ]
-            }
-        else:
-            # 챕터가 없는 경우 (모든 차시를 하나의 그룹으로)
-            subjects_data = {
-                "subjects": [{
-                    "title": self.course_data['subject'],
-                    "lists": [
-                        f"{lesson['number']} {lesson['title']}"
-                        for lesson in self.course_data['lessons']
-                    ]
-                }]
-            }
+        for lesson in self.course_data['lessons']:
+            # "차시" 값이 있으면 "1차", "2차" 형식으로, 없으면 차시번호 사용
+            if lesson.get('order'):
+                title_prefix = f"{lesson['order']}차"
+            else:
+                title_prefix = f"{lesson['index']}차"
+
+            subjects.append({
+                "title": f"{title_prefix} {lesson['title']}",
+                "lists": [f"{lesson['number']} {lesson['title']}"]
+            })
+
+        subjects_data = {"subjects": subjects}
 
         # 파일 저장
         subjects_file = self.course_dir / 'subjects.json'
@@ -268,14 +257,21 @@ class ContentGenerator:
 
     def _get_guide_for_lesson(self, lesson_index: int) -> str:
         """차시에 맞는 guide URL 반환"""
-        # 각 Part의 첫 차시에서 guide URL 찾기
-        for chapter in self.course_data['chapters']:
+        # 현재 차시가 속한 Part를 찾아서 해당 Part의 첫 차시 다운로드 URL 사용
+        current_chapter = None
+
+        # 역순으로 순회하여 lesson_start가 lesson_index 이하인 가장 가까운 chapter 찾기
+        for chapter in reversed(self.course_data['chapters']):
             if chapter['lesson_start'] <= lesson_index:
-                # 해당 Part의 첫 차시에서 다운로드 URL 찾기
-                first_lesson_num = chapter['lessons'][0]
-                for lesson in self.course_data['lessons']:
-                    if lesson['number'] == first_lesson_num and lesson['download_url']:
-                        return lesson['download_url']
+                current_chapter = chapter
+                break
+
+        if current_chapter:
+            # 해당 Part의 첫 차시에서 다운로드 URL 찾기
+            first_lesson_num = current_chapter['lessons'][0]
+            for lesson in self.course_data['lessons']:
+                if lesson['number'] == first_lesson_num and lesson['download_url']:
+                    return lesson['download_url']
 
         # 찾지 못한 경우 첫 번째 다운로드 URL 사용
         for lesson in self.course_data['lessons']:

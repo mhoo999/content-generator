@@ -208,6 +208,7 @@ class CourseDataParser:
             lesson = {
                 'index': int(row['차시번호']) if pd.notna(row['차시번호']) else idx + 1,
                 'number': f"{int(row['차시번호']):02d}" if pd.notna(row['차시번호']) else f"{idx + 1:02d}",
+                'order': int(row['차시']) if '차시' in row and pd.notna(row['차시']) else None,  # 각 Part내 차시 순서
                 'title': row['차시명'],
                 'video_url': self._normalize_url(row['강의영상(mp4) 링크']),
                 'download_url': self._normalize_url(row.get('다운로드(zip) 링크')),
