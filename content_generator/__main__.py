@@ -20,18 +20,21 @@ def main():
   # 엑셀 파일에서 생성
   python -m content_generator -i 25ctvibec.xlsx -o ~/projects/contents_it/subjects
 
+  # 구글 시트 링크로 바로 생성 (다운로드 불필요!)
+  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0"
+
   # 템플릿 지정
   python -m content_generator -i 25ctvibec.xlsx -t ct2022
 
   # 미리보기만 (실제 생성 안 함)
-  python -m content_generator -i 25ctvibec.xlsx --dry-run
+  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit" --dry-run
         '''
     )
 
     parser.add_argument(
         '-i', '--input',
         required=True,
-        help='입력 파일 (엑셀 또는 CSV)'
+        help='입력 파일 (엑셀, CSV) 또는 구글 시트 URL'
     )
 
     parser.add_argument(
@@ -61,11 +64,13 @@ def main():
 
     args = parser.parse_args()
 
-    # 파일 존재 확인
-    input_path = Path(args.input)
-    if not input_path.exists():
-        print(f"❌ 오류: 파일을 찾을 수 없습니다: {args.input}")
-        sys.exit(1)
+    # 입력 확인 (URL이 아닌 경우 파일 존재 확인)
+    is_url = args.input.startswith('http://') or args.input.startswith('https://')
+    if not is_url:
+        input_path = Path(args.input)
+        if not input_path.exists():
+            print(f"❌ 오류: 파일을 찾을 수 없습니다: {args.input}")
+            sys.exit(1)
 
     try:
         print("=" * 60)
@@ -74,8 +79,9 @@ def main():
         print()
 
         # 1. 파싱
-        print(f"📖 파일 파싱 중: {input_path.name}")
-        course_data = parse_course_file(str(input_path))
+        input_name = args.input if is_url else Path(args.input).name
+        print(f"📖 데이터 파싱 중: {input_name}")
+        course_data = parse_course_file(args.input)
 
         if args.verbose:
             print(f"   - 과정 코드: {course_data['course_code']}")

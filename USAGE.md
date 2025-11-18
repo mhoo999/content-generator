@@ -8,9 +8,17 @@
 pip install -r requirements.txt
 ```
 
-### 2. 엑셀 파일 준비
+### 2. 데이터 준비
 
-엑셀 파일은 다음 컬럼을 포함해야 합니다:
+**옵션 A: 구글 시트 사용 (추천!)**
+- 구글 시트에서 바로 작성
+- "공유" 버튼 클릭 → "링크가 있는 모든 사용자" 선택
+- 링크 복사해서 바로 사용 (다운로드 불필요!)
+
+**옵션 B: 엑셀 파일**
+- 로컬에 엑셀 파일 저장
+
+데이터는 다음 컬럼을 포함해야 합니다:
 
 **필수 컬럼:**
 - 과정명
@@ -26,17 +34,22 @@ pip install -r requirements.txt
 ### 3. 실행
 
 ```bash
-# 기본 사용
-python -m content_generator -i your_file.xlsx -o /path/to/output
+# 구글 시트 링크로 바로 생성 (추천!)
+python -m content_generator \
+  -i "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit#gid=0" \
+  -o ~/IdeaProjects/contents_it/subjects \
+  -t ct2022
 
-# 실제 25ctvibec 예시
+# 엑셀 파일 사용
 python -m content_generator \
   -i 25ctvibec.xlsx \
   -o ~/IdeaProjects/contents_it/subjects \
   -t ct2022
 
 # 미리보기만 (실제 생성 안 함)
-python -m content_generator -i 25ctvibec.xlsx --dry-run
+python -m content_generator \
+  -i "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" \
+  --dry-run
 ```
 
 ## 엑셀 파일 예시
@@ -107,17 +120,45 @@ output/
 
 ## 실무 워크플로우
 
-### 1. 엑셀 시트 받기
-교육팀에서 엑셀 파일 수령
+### 방법 1: 구글 시트 사용 (추천)
 
-### 2. 검증 (dry-run)
+#### 1. 구글 시트 링크 받기
+교육팀에서 구글 시트 공유 링크 수령
+
+#### 2. 검증 (dry-run)
 ```bash
-python -m content_generator -i 25ctvibec.xlsx --dry-run
+python -m content_generator \
+  -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0" \
+  --dry-run
 ```
 
 생성될 구조 확인
 
-### 3. 실제 생성
+#### 3. 실제 생성
+```bash
+python -m content_generator \
+  -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0" \
+  -o ~/IdeaProjects/contents_it/subjects \
+  -t ct2022 \
+  -v
+```
+
+**장점:**
+- 다운로드/업로드 과정 불필요
+- 구글 시트 수정하면 즉시 반영
+- 여러 사람이 동시 작업 가능
+
+### 방법 2: 엑셀 파일 사용
+
+#### 1. 엑셀 파일 받기
+교육팀에서 엑셀 파일 수령
+
+#### 2. 검증 (dry-run)
+```bash
+python -m content_generator -i 25ctvibec.xlsx --dry-run
+```
+
+#### 3. 실제 생성
 ```bash
 python -m content_generator \
   -i 25ctvibec.xlsx \

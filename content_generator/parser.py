@@ -3,8 +3,11 @@
 """
 
 import pandas as pd
+import requests
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
+from io import BytesIO
 
 
 class CourseDataParser:
@@ -29,15 +32,47 @@ class CourseDataParser:
     def __init__(self, file_path: str):
         """
         Args:
-            file_path: 엑셀 또는 CSV 파일 경로
+            file_path: 엑셀/CSV 파일 경로 또는 구글 시트 URL
         """
-        self.file_path = Path(file_path)
+        self.file_path_or_url = file_path
+        self.is_url = self._is_url(file_path)
+        self.file_path = None if self.is_url else Path(file_path)
         self.df: Optional[pd.DataFrame] = None
         self.course_code: Optional[str] = None
 
+    @staticmethod
+    def _is_url(path: str) -> bool:
+        """URL인지 확인"""
+        return path.startswith('http://') or path.startswith('https://')
+
+    @staticmethod
+    def _convert_google_sheets_url(url: str) -> str:
+        """
+        구글 시트 URL을 CSV export URL로 변환
+
+        입력 예시:
+        - https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0
+        - https://docs.google.com/spreadsheets/d/SHEET_ID/edit?usp=sharing
+
+        출력:
+        - https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=0
+        """
+        # SHEET_ID 추출
+        match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', url)
+        if not match:
+            return url  # 구글 시트가 아니면 원본 반환
+
+        sheet_id = match.group(1)
+
+        # GID 추출 (시트 탭 번호, 기본값 0)
+        gid_match = re.search(r'[#&]gid=(\d+)', url)
+        gid = gid_match.group(1) if gid_match else '0'
+
+        return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+
     def parse(self) -> Dict:
         """
-        파일을 파싱하여 과정 데이터 반환
+        파일 또는 URL을 파싱하여 과정 데이터 반환
 
         Returns:
             {
@@ -54,13 +89,11 @@ class CourseDataParser:
                 'total_lessons': 22
             }
         """
-        # 파일 읽기
-        if self.file_path.suffix == '.xlsx':
-            self.df = pd.read_excel(self.file_path)
-        elif self.file_path.suffix == '.csv':
-            self.df = pd.read_csv(self.file_path)
+        # 데이터 읽기
+        if self.is_url:
+            self._load_from_url()
         else:
-            raise ValueError(f"지원하지 않는 파일 형식: {self.file_path.suffix}")
+            self._load_from_file()
 
         # 컬럼 검증
         self._validate_columns()
@@ -72,6 +105,37 @@ class CourseDataParser:
         course_data = self._parse_course_data()
 
         return course_data
+
+    def _load_from_url(self):
+        """URL에서 데이터 로드"""
+        url = self.file_path_or_url
+
+        # 구글 시트 URL이면 CSV export URL로 변환
+        if 'docs.google.com/spreadsheets' in url:
+            url = self._convert_google_sheets_url(url)
+            print(f"📊 구글 시트에서 데이터 가져오는 중...")
+
+        # URL에서 데이터 다운로드
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            raise ValueError(f"URL에서 데이터를 가져올 수 없습니다: {e}")
+
+        # CSV로 파싱
+        try:
+            self.df = pd.read_csv(BytesIO(response.content))
+        except Exception as e:
+            raise ValueError(f"CSV 파싱 실패: {e}")
+
+    def _load_from_file(self):
+        """파일에서 데이터 로드"""
+        if self.file_path.suffix == '.xlsx':
+            self.df = pd.read_excel(self.file_path)
+        elif self.file_path.suffix == '.csv':
+            self.df = pd.read_csv(self.file_path)
+        else:
+            raise ValueError(f"지원하지 않는 파일 형식: {self.file_path.suffix}")
 
     def _validate_columns(self):
         """필수 컬럼 확인"""
