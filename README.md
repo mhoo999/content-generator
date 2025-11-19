@@ -4,7 +4,7 @@
 
 ## 📑 목차
 
-- [빠른 시작](#-빠른-시작-30초)
+- [빠른 시작](#-빠른-시작)
 - [기능](#기능)
 - [설치](#설치)
 - [사용법](#사용법)
@@ -18,20 +18,44 @@
 
 ---
 
-## ⚡ 빠른 시작 (30초)
+## ⚡ 빠른 시작
+
+### 비개발자를 위한 설치 가이드
 
 ```bash
-# 1. 의존성 설치 (최초 1회만)
+# 1. 터미널(맥) 또는 명령 프롬프트(윈도우) 열기
+#    맥: Spotlight 검색(⌘ + Space) → "터미널" 입력
+#    윈도우: 시작 메뉴 → "cmd" 또는 "PowerShell" 검색
+
+# 2. 프로젝트 다운로드 (레포지토리 클론)
+git clone https://github.com/mhoo999/content-generator.git
+
+# 3. 다운로드한 폴더로 이동
+cd content-generator
+
+# 4. 필요한 프로그램 설치 (최초 1회만)
 pip3 install -r requirements.txt
 
-# 2. 구글 시트에서 엑셀 파일 다운로드
-#    파일 → 다운로드 → Microsoft Excel (.xlsx)
+# 5. 구글 시트에서 엑셀 파일 다운로드
+#    - 구글 시트 열기
+#    - 상단 메뉴: 파일 → 다운로드 → Microsoft Excel (.xlsx)
+#    - 다운로드 폴더에 저장됨 (보통 ~/Downloads/)
 
-# 3. 엑셀 파일로 실행
+# 6. 엑셀 파일로 실행
 python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
 
 # 완료! 🎉
 # output/25ctvibec/ 폴더가 생성됩니다
+```
+
+### 이미 설치한 경우
+
+```bash
+# 폴더로 이동
+cd content-generator
+
+# 실행
+python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
 ```
 
 ---
