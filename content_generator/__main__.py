@@ -6,8 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .parser import parse_course_file
+from .parser import parse_course_file, get_sheet_names
 from .generator import ContentGenerator
+from . import config
 
 
 def main():
@@ -20,8 +21,11 @@ def main():
   # 엑셀 파일에서 생성
   python -m content_generator -i 25ctvibec.xlsx -o ~/projects/contents_it/subjects
 
-  # 구글 시트 링크로 바로 생성 (다운로드 불필요!)
+  # 구글 시트 링크로 바로 생성 (공개 시트)
   python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0"
+
+  # 비공개 구글 시트 (OAuth 인증)
+  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit" --auth
 
   # 특정 시트 탭 선택 (시트 이름으로)
   python -m content_generator -i 25ctvibec.xlsx -s "25ctvibec"
@@ -39,7 +43,7 @@ def main():
 
     parser.add_argument(
         '-i', '--input',
-        required=True,
+        required=False,
         help='입력 파일 (엑셀, CSV) 또는 구글 시트 URL'
     )
 
@@ -62,6 +66,12 @@ def main():
     )
 
     parser.add_argument(
+        '--auth',
+        action='store_true',
+        help='구글 OAuth 인증 사용 (비공개 구글 시트 접근)'
+    )
+
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='실제 생성 없이 미리보기만'
@@ -73,7 +83,53 @@ def main():
         help='상세 로그 출력'
     )
 
+    parser.add_argument(
+        '--save-config',
+        action='store_true',
+        help='현재 설정 저장 (입력 파일, 출력 경로, 템플릿)'
+    )
+
+    parser.add_argument(
+        '--use-last',
+        action='store_true',
+        help='마지막 저장된 설정 사용'
+    )
+
+    parser.add_argument(
+        '--all-sheets',
+        action='store_true',
+        help='엑셀 파일의 모든 시트 처리 (\'TTL\' 시트 제외)'
+    )
+
     args = parser.parse_args()
+
+    # 저장된 설정 사용
+    if args.use_last:
+        if not config.has_config():
+            print("❌ 저장된 설정이 없습니다.")
+            print("   먼저 --save-config 옵션으로 설정을 저장하세요.")
+            sys.exit(1)
+
+        saved_config = config.load_config()
+        print("📂 저장된 설정 사용:")
+        print(f"   - 입력: {saved_config['input']}")
+        print(f"   - 출력: {saved_config['output']}")
+        print(f"   - 템플릿: {saved_config['template']}")
+        print()
+
+        # 저장된 설정으로 덮어쓰기 (CLI 인자가 없을 경우만)
+        if not args.input:
+            args.input = saved_config['input']
+        if args.output == './output':  # 기본값인 경우
+            args.output = saved_config['output']
+        if args.template == 'ct2022':  # 기본값인 경우
+            args.template = saved_config['template']
+
+    # 입력 파일 확인
+    if not args.input:
+        print("❌ 오류: 입력 파일이 지정되지 않았습니다.")
+        print("   -i 옵션으로 입력 파일을 지정하거나, --use-last 옵션을 사용하세요.")
+        sys.exit(1)
 
     # 입력 확인 (URL이 아닌 경우 파일 존재 확인)
     is_url = args.input.startswith('http://') or args.input.startswith('https://')
@@ -89,40 +145,128 @@ def main():
         print("=" * 60)
         print()
 
-        # 1. 파싱
-        input_name = args.input if is_url else Path(args.input).name
-        print(f"📖 데이터 파싱 중: {input_name}")
+        # --all-sheets 옵션: 모든 시트 처리
+        if args.all_sheets:
+            if is_url:
+                print("❌ 오류: --all-sheets 옵션은 엑셀 파일(.xlsx)에서만 사용 가능합니다.")
+                sys.exit(1)
 
-        # 시트 이름 처리 (숫자 문자열을 int로 변환)
-        sheet_name = args.sheet
-        if sheet_name and sheet_name.isdigit():
-            sheet_name = int(sheet_name)
+            # 모든 시트 이름 가져오기
+            sheet_names = get_sheet_names(args.input)
+            # 'TTL' 제외
+            target_sheets = [name for name in sheet_names if name != 'TTL']
 
-        course_data = parse_course_file(args.input, sheet_name)
+            if not target_sheets:
+                print("❌ 처리할 시트가 없습니다. (TTL 제외)")
+                sys.exit(1)
 
-        if args.verbose:
-            print(f"   - 과정 코드: {course_data['course_code']}")
-            print(f"   - 과정명: {course_data['subject']}")
-            print(f"   - 총 차시: {course_data['total_lessons']}")
-            print(f"   - 챕터 수: {len(course_data['chapters'])}")
-        print("✅ 파싱 완료")
-        print()
-
-        # 2. 생성
-        generator = ContentGenerator(
-            course_data=course_data,
-            output_dir=args.output,
-            template=args.template
-        )
-
-        generator.generate(dry_run=args.dry_run)
-
-        if not args.dry_run:
+            print(f"📋 처리할 시트 목록 ({len(target_sheets)}개):")
+            for sheet in target_sheets:
+                print(f"   - {sheet}")
             print()
+
+            # 각 시트마다 처리
+            success_count = 0
+            fail_count = 0
+
+            for sheet in target_sheets:
+                print("=" * 60)
+                print(f"📄 시트 처리 중: {sheet}")
+                print("=" * 60)
+
+                try:
+                    # 파싱
+                    course_data = parse_course_file(args.input, sheet, args.auth)
+
+                    if args.verbose:
+                        print(f"   - 과정 코드: {course_data['course_code']}")
+                        print(f"   - 과정명: {course_data['subject']}")
+                        print(f"   - 총 차시: {course_data['total_lessons']}")
+                        print(f"   - 챕터 수: {len(course_data['chapters'])}")
+                    print("✅ 파싱 완료")
+                    print()
+
+                    # 생성
+                    generator = ContentGenerator(
+                        course_data=course_data,
+                        output_dir=args.output,
+                        template=args.template,
+                        input_file=f"{args.input} (시트: {sheet})"
+                    )
+
+                    generator.generate(dry_run=args.dry_run)
+
+                    if not args.dry_run:
+                        print(f"✅ {course_data['course_code']} 생성 완료")
+                        print()
+                        success_count += 1
+
+                except Exception as e:
+                    print(f"❌ {sheet} 시트 처리 실패: {e}")
+                    if args.verbose:
+                        import traceback
+                        traceback.print_exc()
+                    print()
+                    fail_count += 1
+                    continue
+
+            # 최종 결과
             print("=" * 60)
-            print(f"🎉 성공! {course_data['course_code']} 생성 완료")
-            print(f"📂 위치: {Path(args.output) / course_data['course_code']}")
+            print(f"📊 전체 처리 결과")
+            print(f"   - 성공: {success_count}개")
+            print(f"   - 실패: {fail_count}개")
+            print(f"   - 총: {len(target_sheets)}개")
             print("=" * 60)
+
+        # 단일 시트 처리 (기존 로직)
+        else:
+            # 1. 파싱
+            input_name = args.input if is_url else Path(args.input).name
+            print(f"📖 데이터 파싱 중: {input_name}")
+
+            # 시트 이름 처리 (숫자 문자열을 int로 변환)
+            sheet_name = args.sheet
+            if sheet_name and sheet_name.isdigit():
+                sheet_name = int(sheet_name)
+
+            course_data = parse_course_file(args.input, sheet_name, args.auth)
+
+            if args.verbose:
+                print(f"   - 과정 코드: {course_data['course_code']}")
+                print(f"   - 과정명: {course_data['subject']}")
+                print(f"   - 총 차시: {course_data['total_lessons']}")
+                print(f"   - 챕터 수: {len(course_data['chapters'])}")
+            print("✅ 파싱 완료")
+            print()
+
+            # 2. 생성
+            generator = ContentGenerator(
+                course_data=course_data,
+                output_dir=args.output,
+                template=args.template,
+                input_file=args.input
+            )
+
+            generator.generate(dry_run=args.dry_run)
+
+            if not args.dry_run:
+                print()
+                print("=" * 60)
+                print(f"🎉 성공! {course_data['course_code']} 생성 완료")
+                print(f"📂 위치: {Path(args.output) / course_data['course_code']}")
+                print("=" * 60)
+
+                # 설정 저장
+                if args.save_config:
+                    print()
+                    config.save_config(
+                        input_file=args.input,
+                        output_dir=args.output,
+                        template=args.template
+                    )
+                    print()
+                    print("💡 다음번에는 --use-last 옵션으로 간편하게 실행하세요:")
+                    print(f"   python3 -m content_generator --use-last")
 
     except Exception as e:
         print(f"\n❌ 오류 발생: {e}")

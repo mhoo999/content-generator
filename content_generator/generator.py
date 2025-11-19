@@ -6,23 +6,26 @@ import json
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
+from datetime import datetime
 
 
 class ContentGenerator:
     """컨텐츠 생성기"""
 
-    def __init__(self, course_data: Dict, output_dir: str, template: str = "ct2022"):
+    def __init__(self, course_data: Dict, output_dir: str, template: str = "ct2022", input_file: str = None):
         """
         Args:
             course_data: 파싱된 과정 데이터
             output_dir: 출력 디렉토리
             template: 템플릿 종류 (ct2022, it2023)
+            input_file: 입력 파일 경로 (문서화용)
         """
         self.course_data = course_data
         self.output_dir = Path(output_dir)
         self.template = template
         self.course_code = course_data['course_code']
         self.course_dir = self.output_dir / self.course_code
+        self.input_file = input_file
 
     def generate(self, dry_run: bool = False):
         """
@@ -47,6 +50,7 @@ class ContentGenerator:
         self._create_course_structure()
         self._create_subjects_json()
         self._create_lesson_files()
+        self._create_generation_log()
 
         print(f"\n✅ 완료! {self.course_code} 생성됨")
 
@@ -295,3 +299,33 @@ class ContentGenerator:
             data_file = lesson_dir / 'assets' / 'data' / 'data.json'
             if data_file.exists():
                 data_file.chmod(0o644)
+
+    def _create_generation_log(self):
+        """생성 이력 로그 파일 생성"""
+        log_data = {
+            "generated_at": datetime.now().isoformat(),
+            "course_code": self.course_code,
+            "subject": self.course_data['subject'],
+            "total_lessons": self.course_data['total_lessons'],
+            "chapters": len(self.course_data['chapters']),
+            "template": self.template,
+            "input_file": self.input_file,
+            "output_dir": str(self.output_dir),
+            "lessons": [
+                {
+                    "number": lesson['number'],
+                    "title": lesson['title'],
+                    "order": lesson.get('order'),
+                    "video_url": lesson['video_url'],
+                    "has_download": bool(lesson['download_url'])
+                }
+                for lesson in self.course_data['lessons']
+            ]
+        }
+
+        log_file = self.course_dir / '.generation_log.json'
+        with open(log_file, 'w', encoding='utf-8') as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+        log_file.chmod(0o644)
+        print(f"📝 생성 이력 저장 완료: .generation_log.json")
