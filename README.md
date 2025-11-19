@@ -791,10 +791,22 @@ content-generator/
 │   ├── generator.py      # 폴더/파일 생성
 │   ├── config.py         # ⭐ 설정 저장/불러오기 (NEW)
 │   └── templates/        # HTML 템플릿
+├── history/              # ⭐ 생성 이력 (자동 생성, .gitignore에 포함)
+│   ├── 251119_1007.json  # 2025년 11월 19일 10시 07분 생성
+│   ├── 251119_1425.json  # 2025년 11월 19일 14시 25분 생성
+│   └── 251120_0930.json  # 2025년 11월 20일 09시 30분 생성
+├── output/               # 생성된 콘텐츠 폴더 (기본값, .gitignore에 포함)
+│   └── 25ctvibec/
+│       ├── subjects.json
+│       ├── 01/
+│       │   ├── index.html
+│       │   └── assets/data/data.json
+│       └── 02/
 ├── tests/
 ├── examples/
 │   └── test_25ctvibec.xlsx
 ├── requirements.txt
+├── .gitignore
 ├── README.md
 └── setup.py
 ```
