@@ -45,7 +45,7 @@ python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
 - 멀티 시트 지원 (여러 탭 선택 가능)
 - **전체 시트 일괄 처리 (--all-sheets)** ⭐ NEW
 - **설정 저장 및 재사용 (--save-config, --use-last)** ⭐ NEW
-- **생성 이력 중앙 관리 (~/.content-generator/history.json)** ⭐ NEW
+- **생성 이력 개별 파일 관리 (YYMMDD_XXX.json)** ⭐ NEW
 - 데이터 검증
 
 ## 설치
@@ -359,39 +359,44 @@ subjects/
     └── ...
 ```
 
-**생성 이력 (중앙 관리):** ⭐ NEW
+**생성 이력 (개별 파일 관리):** ⭐ NEW
 
-모든 생성 이력은 `~/.content-generator/history.json`에 저장됩니다.
+각 생성마다 개별 파일로 `~/.content-generator/history/` 폴더에 저장됩니다.
 
+**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호)
+
+**예시:**
+```
+~/.content-generator/history/
+├── 251119_001.json  # 2025년 11월 19일 첫 번째 생성
+├── 251119_002.json  # 2025년 11월 19일 두 번째 생성
+├── 251119_003.json  # 2025년 11월 19일 세 번째 생성
+├── 251120_001.json  # 2025년 11월 20일 첫 번째 생성
+└── 251120_002.json  # 2025년 11월 20일 두 번째 생성
+```
+
+**파일 내용 예시 (251119_001.json):**
 ```json
-[
-  {
-    "generated_at": "2025-01-19T15:30:45.123456",
-    "course_code": "25ctvibec",
-    "subject": "AI Vibe (바이브) 코딩으로 크롬 확장 프로그램 만들기",
-    "total_lessons": 22,
-    "chapters": 5,
-    "template": "ct2022",
-    "input_file": "/Users/username/Downloads/courses.xlsx",
-    "output_dir": "/Users/username/projects/subjects/25ctvibec",
-    "lessons": [
-      {
-        "number": "01",
-        "title": "DEMO 미리보기",
-        "order": 1,
-        "video_url": "https://cdn-it.livestudy.com/mov/2025/25ctvibec/25ctvibec_01.mp4",
-        "has_download": true
-      },
-      ...
-    ]
-  },
-  {
-    "generated_at": "2025-01-19T16:45:20.789012",
-    "course_code": "25ctvibeg",
-    "subject": "또 다른 과정",
+{
+  "generated_at": "2025-11-19T15:30:45.123456",
+  "course_code": "25ctvibec",
+  "subject": "AI Vibe (바이브) 코딩으로 크롬 확장 프로그램 만들기",
+  "total_lessons": 22,
+  "chapters": 5,
+  "template": "ct2022",
+  "input_file": "/Users/username/Downloads/courses.xlsx",
+  "output_dir": "/Users/username/projects/subjects/25ctvibec",
+  "lessons": [
+    {
+      "number": "01",
+      "title": "DEMO 미리보기",
+      "order": 1,
+      "video_url": "https://cdn-it.livestudy.com/mov/2025/25ctvibec/25ctvibec_01.mp4",
+      "has_download": true
+    },
     ...
-  }
-]
+  ]
+}
 ```
 
 ## 데이터 형식
@@ -606,20 +611,38 @@ python3 -m content_generator --use-last --all-sheets
 
 #### Q9. 언제 어떤 파일로 생성했는지 확인할 수 있나요? ⭐ NEW
 
-A: 모든 생성 이력이 `~/.content-generator/history.json`에 자동으로 기록됩니다.
+A: 각 생성마다 개별 파일로 `~/.content-generator/history/` 폴더에 자동 기록됩니다.
+
+**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호)
 
 ```bash
-# 전체 생성 이력 확인
-cat ~/.content-generator/history.json
+# 전체 이력 파일 목록 보기
+ls -la ~/.content-generator/history/
+
+# 결과:
+# 251119_001.json
+# 251119_002.json
+# 251120_001.json
+
+# 오늘 생성한 이력 보기
+ls ~/.content-generator/history/$(date +%y%m%d)_*.json
+
+# 특정 파일 내용 보기
+cat ~/.content-generator/history/251119_001.json
 
 # 보기 좋게 출력 (jq 사용)
-cat ~/.content-generator/history.json | jq .
+cat ~/.content-generator/history/251119_001.json | jq .
 
-# 최근 3개 이력만 보기
-cat ~/.content-generator/history.json | jq '.[-3:]'
+# 모든 이력 파일의 과정 코드만 추출
+for file in ~/.content-generator/history/*.json; do
+  echo "$(basename $file): $(jq -r '.course_code' $file)"
+done
 
-# 특정 과정 찾기
-cat ~/.content-generator/history.json | jq '.[] | select(.course_code == "25ctvibec")'
+# 특정 과정 찾기 (grep 사용)
+grep -l "25ctvibec" ~/.content-generator/history/*.json
+
+# 최근 5개 파일 보기
+ls -t ~/.content-generator/history/*.json | head -5
 ```
 
 **기록 내용:**
@@ -632,8 +655,9 @@ cat ~/.content-generator/history.json | jq '.[] | select(.course_code == "25ctvi
 - 각 차시별 상세 정보
 
 **저장 위치:**
-- `~/.content-generator/history.json` (배열 형태로 모든 이력 저장)
-- 새로 생성할 때마다 이력이 추가됩니다
+- `~/.content-generator/history/YYMMDD_XXX.json`
+- 같은 날짜에 여러 번 생성하면 001, 002, 003... 순서로 증가
+- 각 파일은 독립적으로 관리되어 특정 이력 삭제/조회가 쉬움
 
 ## 프로젝트 구조
 

@@ -301,15 +301,40 @@ class ContentGenerator:
                 data_file.chmod(0o644)
 
     def _create_generation_log(self):
-        """생성 이력 로그 파일 생성 (중앙 집중식)"""
-        # ~/.content-generator/ 폴더에 저장
-        log_dir = Path.home() / '.content-generator'
-        log_dir.mkdir(parents=True, exist_ok=True)
-        history_file = log_dir / 'history.json'
+        """생성 이력 로그 파일 생성 (개별 파일로 저장)"""
+        # ~/.content-generator/history/ 폴더에 저장
+        history_dir = Path.home() / '.content-generator' / 'history'
+        history_dir.mkdir(parents=True, exist_ok=True)
 
-        # 새 이력 데이터
-        log_entry = {
-            "generated_at": datetime.now().isoformat(),
+        # 현재 날짜로 파일명 생성 (YYMMDD_XXX.json)
+        now = datetime.now()
+        date_prefix = now.strftime('%y%m%d')  # 예: 251119
+
+        # 같은 날짜의 기존 파일 찾기
+        existing_files = list(history_dir.glob(f'{date_prefix}_*.json'))
+
+        if existing_files:
+            # 마지막 번호 찾기
+            numbers = []
+            for f in existing_files:
+                # 251119_001.json -> 001 추출
+                try:
+                    num = int(f.stem.split('_')[1])
+                    numbers.append(num)
+                except (IndexError, ValueError):
+                    continue
+
+            next_num = max(numbers) + 1 if numbers else 1
+        else:
+            next_num = 1
+
+        # 파일명 생성 (예: 251119_001.json)
+        filename = f"{date_prefix}_{next_num:03d}.json"
+        history_file = history_dir / filename
+
+        # 이력 데이터
+        log_data = {
+            "generated_at": now.isoformat(),
             "course_code": self.course_code,
             "subject": self.course_data['subject'],
             "total_lessons": self.course_data['total_lessons'],
@@ -329,19 +354,9 @@ class ContentGenerator:
             ]
         }
 
-        # 기존 이력 불러오기
-        if history_file.exists():
-            with open(history_file, 'r', encoding='utf-8') as f:
-                history = json.load(f)
-        else:
-            history = []
-
-        # 새 이력 추가
-        history.append(log_entry)
-
-        # 저장 (최신 이력이 마지막에)
+        # 파일 저장
         with open(history_file, 'w', encoding='utf-8') as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
 
         history_file.chmod(0o644)
         print(f"📝 생성 이력 저장: {history_file}")
