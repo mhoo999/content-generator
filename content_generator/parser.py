@@ -3,17 +3,8 @@
 """
 
 import pandas as pd
-import requests
-import re
 from pathlib import Path
 from typing import Dict, List, Optional
-from io import BytesIO
-
-try:
-    from .google_auth import read_google_sheet_with_auth
-    GOOGLE_AUTH_AVAILABLE = True
-except ImportError:
-    GOOGLE_AUTH_AVAILABLE = False
 
 
 class CourseDataParser:
@@ -35,54 +26,20 @@ class CourseDataParser:
 
     REQUIRED_COLUMNS = ['과정명', '차시번호', '차시명', '강의영상(mp4) 링크']
 
-    def __init__(self, file_path: str, sheet_name: Optional[str] = None, use_auth: bool = False):
+    def __init__(self, file_path: str, sheet_name: Optional[str] = None):
         """
         Args:
-            file_path: 엑셀/CSV 파일 경로 또는 구글 시트 URL
+            file_path: 엑셀/CSV 파일 경로
             sheet_name: 엑셀 시트 이름 또는 인덱스 (None이면 첫 번째 시트)
-            use_auth: 구글 OAuth 인증 사용 여부 (권한 있는 시트 접근)
         """
-        self.file_path_or_url = file_path
+        self.file_path = Path(file_path)
         self.sheet_name = sheet_name or 0  # 기본값: 첫 번째 시트
-        self.use_auth = use_auth
-        self.is_url = self._is_url(file_path)
-        self.file_path = None if self.is_url else Path(file_path)
         self.df: Optional[pd.DataFrame] = None
         self.course_code: Optional[str] = None
 
-    @staticmethod
-    def _is_url(path: str) -> bool:
-        """URL인지 확인"""
-        return path.startswith('http://') or path.startswith('https://')
-
-    @staticmethod
-    def _convert_google_sheets_url(url: str) -> str:
-        """
-        구글 시트 URL을 CSV export URL로 변환
-
-        입력 예시:
-        - https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0
-        - https://docs.google.com/spreadsheets/d/SHEET_ID/edit?usp=sharing
-
-        출력:
-        - https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=0
-        """
-        # SHEET_ID 추출
-        match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', url)
-        if not match:
-            return url  # 구글 시트가 아니면 원본 반환
-
-        sheet_id = match.group(1)
-
-        # GID 추출 (시트 탭 번호, 기본값 0)
-        gid_match = re.search(r'[#&]gid=(\d+)', url)
-        gid = gid_match.group(1) if gid_match else '0'
-
-        return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-
     def parse(self) -> Dict:
         """
-        파일 또는 URL을 파싱하여 과정 데이터 반환
+        파일을 파싱하여 과정 데이터 반환
 
         Returns:
             {
@@ -100,10 +57,7 @@ class CourseDataParser:
             }
         """
         # 데이터 읽기
-        if self.is_url:
-            self._load_from_url()
-        else:
-            self._load_from_file()
+        self._load_from_file()
 
         # 컬럼 검증
         self._validate_columns()
@@ -115,54 +69,6 @@ class CourseDataParser:
         course_data = self._parse_course_data()
 
         return course_data
-
-    def _load_from_url(self):
-        """URL에서 데이터 로드"""
-        url = self.file_path_or_url
-
-        # 구글 시트 URL인 경우
-        if 'docs.google.com/spreadsheets' in url:
-            # OAuth 인증 사용
-            if self.use_auth:
-                if not GOOGLE_AUTH_AVAILABLE:
-                    raise ImportError(
-                        "구글 인증 라이브러리가 설치되지 않았습니다.\n"
-                        "실행: pip install gspread google-auth google-auth-oauthlib"
-                    )
-
-                print(f"🔐 OAuth 인증으로 구글 시트 접근 중...")
-                try:
-                    self.df = read_google_sheet_with_auth(url, self.sheet_name)
-                    # 컬럼명 앞뒤 공백 제거
-                    self.df.columns = self.df.columns.str.strip()
-                    print(f"✅ 구글 시트 데이터 로드 완료")
-                    return
-                except Exception as e:
-                    raise ValueError(f"구글 시트 접근 실패: {e}")
-
-            # CSV export URL로 변환 (공개 시트만 가능)
-            else:
-                url = self._convert_google_sheets_url(url)
-                print(f"📊 구글 시트에서 데이터 가져오는 중...")
-
-        # URL에서 데이터 다운로드
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise ValueError(
-                f"URL에서 데이터를 가져올 수 없습니다: {e}\n\n"
-                "💡 비공개 시트인 경우 --auth 옵션을 사용하세요:\n"
-                "   python -m content_generator -i \"URL\" --auth"
-            )
-
-        # CSV로 파싱
-        try:
-            self.df = pd.read_csv(BytesIO(response.content))
-            # 컬럼명 앞뒤 공백 제거
-            self.df.columns = self.df.columns.str.strip()
-        except Exception as e:
-            raise ValueError(f"CSV 파싱 실패: {e}")
 
     def _load_from_file(self):
         """파일에서 데이터 로드"""
@@ -295,19 +201,18 @@ class CourseDataParser:
         return url
 
 
-def parse_course_file(file_path: str, sheet_name: Optional[str] = None, use_auth: bool = False) -> Dict:
+def parse_course_file(file_path: str, sheet_name: Optional[str] = None) -> Dict:
     """
     과정 파일 파싱 (헬퍼 함수)
 
     Args:
         file_path: 엑셀 또는 CSV 파일 경로
         sheet_name: 엑셀 시트 이름 또는 인덱스 (None이면 첫 번째 시트)
-        use_auth: 구글 OAuth 인증 사용 여부
 
     Returns:
         파싱된 과정 데이터
     """
-    parser = CourseDataParser(file_path, sheet_name, use_auth)
+    parser = CourseDataParser(file_path, sheet_name)
     return parser.parse()
 
 

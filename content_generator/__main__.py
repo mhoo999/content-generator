@@ -21,23 +21,24 @@ def main():
   # 엑셀 파일에서 생성
   python -m content_generator -i 25ctvibec.xlsx -o ~/projects/contents_it/subjects
 
-  # 구글 시트 링크로 바로 생성 (공개 시트)
-  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0"
-
-  # 비공개 구글 시트 (OAuth 인증)
-  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit" --auth
-
   # 특정 시트 탭 선택 (시트 이름으로)
   python -m content_generator -i 25ctvibec.xlsx -s "25ctvibec"
 
   # 특정 시트 탭 선택 (인덱스로, 0부터 시작)
   python -m content_generator -i 25ctvibec.xlsx -s 1
 
+  # 모든 시트 일괄 처리 (TTL 제외)
+  python -m content_generator -i 25ctvibec.xlsx --all-sheets
+
   # 템플릿 지정
   python -m content_generator -i 25ctvibec.xlsx -t ct2022
 
+  # 설정 저장 및 재사용
+  python -m content_generator -i 25ctvibec.xlsx --save-config
+  python -m content_generator --use-last
+
   # 미리보기만 (실제 생성 안 함)
-  python -m content_generator -i "https://docs.google.com/spreadsheets/d/SHEET_ID/edit" --dry-run
+  python -m content_generator -i 25ctvibec.xlsx --dry-run
         '''
     )
 
@@ -63,12 +64,6 @@ def main():
     parser.add_argument(
         '-s', '--sheet',
         help='엑셀 시트 이름 또는 인덱스 (기본: 첫 번째 시트). 예: "Sheet1" 또는 "0"'
-    )
-
-    parser.add_argument(
-        '--auth',
-        action='store_true',
-        help='구글 OAuth 인증 사용 (비공개 구글 시트 접근)'
     )
 
     parser.add_argument(
@@ -131,13 +126,11 @@ def main():
         print("   -i 옵션으로 입력 파일을 지정하거나, --use-last 옵션을 사용하세요.")
         sys.exit(1)
 
-    # 입력 확인 (URL이 아닌 경우 파일 존재 확인)
-    is_url = args.input.startswith('http://') or args.input.startswith('https://')
-    if not is_url:
-        input_path = Path(args.input)
-        if not input_path.exists():
-            print(f"❌ 오류: 파일을 찾을 수 없습니다: {args.input}")
-            sys.exit(1)
+    # 파일 존재 확인
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"❌ 오류: 파일을 찾을 수 없습니다: {args.input}")
+        sys.exit(1)
 
     try:
         print("=" * 60)
@@ -147,9 +140,6 @@ def main():
 
         # --all-sheets 옵션: 모든 시트 처리
         if args.all_sheets:
-            if is_url:
-                print("❌ 오류: --all-sheets 옵션은 엑셀 파일(.xlsx)에서만 사용 가능합니다.")
-                sys.exit(1)
 
             # 모든 시트 이름 가져오기
             sheet_names = get_sheet_names(args.input)
@@ -176,7 +166,7 @@ def main():
 
                 try:
                     # 파싱
-                    course_data = parse_course_file(args.input, sheet, args.auth)
+                    course_data = parse_course_file(args.input, sheet)
 
                     if args.verbose:
                         print(f"   - 과정 코드: {course_data['course_code']}")
@@ -221,7 +211,7 @@ def main():
         # 단일 시트 처리 (기존 로직)
         else:
             # 1. 파싱
-            input_name = args.input if is_url else Path(args.input).name
+            input_name = Path(args.input).name
             print(f"📖 데이터 파싱 중: {input_name}")
 
             # 시트 이름 처리 (숫자 문자열을 int로 변환)
@@ -229,7 +219,7 @@ def main():
             if sheet_name and sheet_name.isdigit():
                 sheet_name = int(sheet_name)
 
-            course_data = parse_course_file(args.input, sheet_name, args.auth)
+            course_data = parse_course_file(args.input, sheet_name)
 
             if args.verbose:
                 print(f"   - 과정 코드: {course_data['course_code']}")
