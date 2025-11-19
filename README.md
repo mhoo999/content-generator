@@ -65,6 +65,8 @@ git --version
 
 #### 프로젝트 설치 및 실행
 
+**방법 1: 폴더 안에서 실행 (추천 - 간단함)**
+
 ```bash
 # 1. 프로젝트 다운로드 (레포지토리 클론)
 git clone https://github.com/mhoo999/content-generator.git
@@ -74,28 +76,64 @@ cd content-generator
 
 # 3. 필요한 라이브러리 설치 (최초 1회만)
 pip3 install -r requirements.txt
-# 윈도우에서 pip3가 안 되면: pip install -r requirements.txt
+# 윈도우: pip install -r requirements.txt
 
 # 4. 구글 시트에서 엑셀 파일 다운로드
 #    - 구글 시트 열기
 #    - 상단 메뉴: 파일 → 다운로드 → Microsoft Excel (.xlsx)
-#    - 다운로드 폴더에 저장됨 (보통 ~/Downloads/ 또는 C:\Users\사용자명\Downloads\)
+#    - 다운로드 폴더에 저장됨
 
 # 5. 엑셀 파일로 실행
 python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
-# 윈도우에서 python3가 안 되면: python -m content_generator -i C:\Users\사용자명\Downloads\25ctvibec.xlsx
+# 윈도우: python -m content_generator -i C:\Users\사용자명\Downloads\25ctvibec.xlsx
 
 # 완료! 🎉
 # output/25ctvibec/ 폴더가 생성됩니다
 ```
 
-### 이미 설치한 경우
+⚠️ **주의**: 이 방법은 **content-generator 폴더를 지우면 안 됩니다!**
+- 매번 사용할 때 `cd content-generator` 폴더로 이동해야 합니다
+- 레포지토리 폴더가 프로그램 소스 코드입니다
+
+**방법 2: 시스템에 설치 (어디서든 실행 가능)**
 
 ```bash
-# 폴더로 이동
+# 1~2. 위와 동일 (클론 및 폴더 이동)
+git clone https://github.com/mhoo999/content-generator.git
 cd content-generator
 
-# 실행
+# 3. 시스템에 설치 (최초 1회만)
+pip3 install .
+# 윈도우: pip install .
+
+# 4. 이제 어느 폴더에서든 실행 가능!
+cd ~/Downloads
+python3 -m content_generator -i 25ctvibec.xlsx
+# 윈도우: python -m content_generator -i 25ctvibec.xlsx
+
+# 레포지토리 폴더는 이제 삭제해도 됩니다 (선택사항)
+```
+
+**두 방법 비교**
+
+| | 방법 1 (폴더 실행) | 방법 2 (시스템 설치) |
+|---|---|---|
+| 장점 | 간단, 수정 가능 | 어디서든 실행 가능 |
+| 단점 | 매번 폴더 이동 필요 | 업데이트 시 재설치 필요 |
+| 폴더 삭제 | ❌ 불가 | ✅ 가능 |
+| 추천 대상 | 일반 사용자 | 자주 사용하는 사용자 |
+
+### 이미 설치한 경우
+
+**방법 1 사용 중:**
+```bash
+cd content-generator
+python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
+```
+
+**방법 2 사용 중:**
+```bash
+# 어느 폴더에서든
 python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
 ```
 
