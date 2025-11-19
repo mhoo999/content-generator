@@ -48,7 +48,7 @@ def _create_batch_log(input_file: str, output_dir: str, template: str, batch_res
                         "number": lesson['number'],
                         "title": lesson['title'],
                         "video_url": lesson['video_url'],
-                        "has_download": bool(lesson['download_url'])
+                        "download_url": lesson['download_url'] or generator._get_guide_for_lesson(lesson['index'])
                     }
                     for lesson in generator.course_data['lessons']
                 ]

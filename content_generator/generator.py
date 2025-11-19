@@ -327,7 +327,7 @@ class ContentGenerator:
                     "number": lesson['number'],
                     "title": lesson['title'],
                     "video_url": lesson['video_url'],
-                    "has_download": bool(lesson['download_url'])
+                    "download_url": lesson['download_url'] or self._get_guide_for_lesson(lesson['index'])
                 }
                 for lesson in self.course_data['lessons']
             ]

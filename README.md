@@ -495,7 +495,13 @@ content-generator/        # 레포지토리 루트
       "number": "01",
       "title": "DEMO 미리보기",
       "video_url": "https://cdn-it.livestudy.com/mov/2025/25ctvibec/25ctvibec_01.mp4",
-      "has_download": true
+      "download_url": "//cdn-it.livestudy.com/mov/2025/25ctvibec/down/25ctvibec_book_w01.zip"
+    },
+    {
+      "number": "02",
+      "title": "Cursor AI 사용법",
+      "video_url": "https://cdn-it.livestudy.com/mov/2025/25ctvibec/25ctvibec_02.mp4",
+      "download_url": "//cdn-it.livestudy.com/mov/2025/25ctvibec/down/25ctvibec_book_w01.zip"
     }
   ]
 }
@@ -762,7 +768,7 @@ ls -t history/*.json | head -5
 - 출력 디렉토리
 - 템플릿 종류
 - 총 차시 수, 챕터 수
-- 각 차시별 기본 정보 (번호, 제목, 영상 URL, 다운로드 여부)
+- 각 차시별 기본 정보 (번호, 제목, 영상 URL, 다운로드 URL)
 
 **저장 위치:**
 - 레포지토리 폴더의 `history/YYMMDD_HHMM.json`
