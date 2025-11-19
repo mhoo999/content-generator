@@ -22,27 +22,68 @@
 
 ### 비개발자를 위한 설치 가이드
 
-```bash
-# 1. 터미널(맥) 또는 명령 프롬프트(윈도우) 열기
-#    맥: Spotlight 검색(⌘ + Space) → "터미널" 입력
-#    윈도우: 시작 메뉴 → "cmd" 또는 "PowerShell" 검색
+#### 사전 준비: Python 설치
 
-# 2. 프로젝트 다운로드 (레포지토리 클론)
+**맥(macOS)**
+```bash
+# 터미널 열기: Spotlight 검색(⌘ + Space) → "터미널" 입력
+
+# Python 버전 확인
+python3 --version
+
+# 만약 "command not found" 에러가 나면 Python 설치 필요
+# Homebrew 설치 (이미 있으면 생략)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Python 설치
+brew install python3
+
+# Git 설치 확인 (macOS는 보통 기본 설치되어 있음)
+git --version
+```
+
+**윈도우(Windows)**
+```bash
+# 명령 프롬프트 또는 PowerShell 열기
+# 시작 메뉴 → "cmd" 또는 "PowerShell" 검색
+
+# Python 설치 확인
+python --version
+
+# 설치 안 되어 있으면:
+# 1. https://www.python.org/downloads/ 접속
+# 2. "Download Python" 버튼 클릭
+# 3. 설치 시 "Add Python to PATH" 체크박스 반드시 체크!
+# 4. 설치 완료 후 명령 프롬프트 재시작
+
+# Git 설치 확인
+git --version
+
+# 설치 안 되어 있으면:
+# https://git-scm.com/download/win 에서 다운로드 및 설치
+```
+
+#### 프로젝트 설치 및 실행
+
+```bash
+# 1. 프로젝트 다운로드 (레포지토리 클론)
 git clone https://github.com/mhoo999/content-generator.git
 
-# 3. 다운로드한 폴더로 이동
+# 2. 다운로드한 폴더로 이동
 cd content-generator
 
-# 4. 필요한 프로그램 설치 (최초 1회만)
+# 3. 필요한 라이브러리 설치 (최초 1회만)
 pip3 install -r requirements.txt
+# 윈도우에서 pip3가 안 되면: pip install -r requirements.txt
 
-# 5. 구글 시트에서 엑셀 파일 다운로드
+# 4. 구글 시트에서 엑셀 파일 다운로드
 #    - 구글 시트 열기
 #    - 상단 메뉴: 파일 → 다운로드 → Microsoft Excel (.xlsx)
-#    - 다운로드 폴더에 저장됨 (보통 ~/Downloads/)
+#    - 다운로드 폴더에 저장됨 (보통 ~/Downloads/ 또는 C:\Users\사용자명\Downloads\)
 
-# 6. 엑셀 파일로 실행
+# 5. 엑셀 파일로 실행
 python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
+# 윈도우에서 python3가 안 되면: python -m content_generator -i C:\Users\사용자명\Downloads\25ctvibec.xlsx
 
 # 완료! 🎉
 # output/25ctvibec/ 폴더가 생성됩니다
