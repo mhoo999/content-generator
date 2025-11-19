@@ -361,18 +361,20 @@ subjects/
 
 **생성 이력 (개별 파일 관리):** ⭐ NEW
 
-각 생성마다 개별 파일로 `~/.content-generator/history/` 폴더에 저장됩니다.
+각 생성마다 개별 파일로 **입력 파일이 있는 디렉토리의 `history/` 폴더**에 저장됩니다.
 
-**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호)
+**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호, 000부터 시작)
 
 **예시:**
 ```
-~/.content-generator/history/
-├── 251119_001.json  # 2025년 11월 19일 첫 번째 생성
-├── 251119_002.json  # 2025년 11월 19일 두 번째 생성
-├── 251119_003.json  # 2025년 11월 19일 세 번째 생성
-├── 251120_001.json  # 2025년 11월 20일 첫 번째 생성
-└── 251120_002.json  # 2025년 11월 20일 두 번째 생성
+~/Downloads/              # 입력 파일 위치
+├── courses.xlsx          # 입력 파일
+└── history/              # 생성 이력 폴더
+    ├── 251119_000.json  # 2025년 11월 19일 첫 번째 생성
+    ├── 251119_001.json  # 2025년 11월 19일 두 번째 생성
+    ├── 251119_002.json  # 2025년 11월 19일 세 번째 생성
+    ├── 251120_000.json  # 2025년 11월 20일 첫 번째 생성
+    └── 251120_001.json  # 2025년 11월 20일 두 번째 생성
 ```
 
 **파일 내용 예시 (251119_001.json):**
@@ -611,38 +613,43 @@ python3 -m content_generator --use-last --all-sheets
 
 #### Q9. 언제 어떤 파일로 생성했는지 확인할 수 있나요? ⭐ NEW
 
-A: 각 생성마다 개별 파일로 `~/.content-generator/history/` 폴더에 자동 기록됩니다.
+A: 각 생성마다 개별 파일로 **입력 파일이 있는 디렉토리의 `history/` 폴더**에 자동 기록됩니다.
 
-**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호)
+**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호, 000부터 시작)
 
 ```bash
+# 예시: 입력 파일이 ~/Downloads/courses.xlsx 인 경우
+
 # 전체 이력 파일 목록 보기
-ls -la ~/.content-generator/history/
+ls -la ~/Downloads/history/
 
 # 결과:
-# 251119_001.json
-# 251119_002.json
-# 251120_001.json
+# 251119_000.json  # 첫 번째 생성
+# 251119_001.json  # 두 번째 생성
+# 251120_000.json  # 다음날 첫 번째 생성
 
 # 오늘 생성한 이력 보기
-ls ~/.content-generator/history/$(date +%y%m%d)_*.json
+ls ~/Downloads/history/$(date +%y%m%d)_*.json
 
 # 특정 파일 내용 보기
-cat ~/.content-generator/history/251119_001.json
+cat ~/Downloads/history/251119_000.json
 
 # 보기 좋게 출력 (jq 사용)
-cat ~/.content-generator/history/251119_001.json | jq .
+cat ~/Downloads/history/251119_000.json | jq .
+
+# 배치 작업인 경우 전체 과정 목록 보기
+cat ~/Downloads/history/251119_000.json | jq '.courses[] | {course_code, status, total_lessons}'
 
 # 모든 이력 파일의 과정 코드만 추출
-for file in ~/.content-generator/history/*.json; do
-  echo "$(basename $file): $(jq -r '.course_code' $file)"
+for file in ~/Downloads/history/*.json; do
+  echo "$(basename $file): $(jq -r '.course_code // .courses[].course_code' $file)"
 done
 
 # 특정 과정 찾기 (grep 사용)
-grep -l "25ctvibec" ~/.content-generator/history/*.json
+grep -l "25ctvibec" ~/Downloads/history/*.json
 
 # 최근 5개 파일 보기
-ls -t ~/.content-generator/history/*.json | head -5
+ls -t ~/Downloads/history/*.json | head -5
 ```
 
 **기록 내용:**
@@ -652,12 +659,15 @@ ls -t ~/.content-generator/history/*.json | head -5
 - 출력 디렉토리
 - 템플릿 종류
 - 총 차시 수, 챕터 수
-- 각 차시별 상세 정보
+- subjects.json 전체 내용 (배치 작업시)
+- 각 차시별 data.json 내용 및 검증 상태
 
 **저장 위치:**
-- `~/.content-generator/history/YYMMDD_XXX.json`
-- 같은 날짜에 여러 번 생성하면 001, 002, 003... 순서로 증가
+- 입력 파일이 있는 디렉토리의 `history/YYMMDD_XXX.json`
+- 예: 입력 파일이 `~/Downloads/courses.xlsx`이면 → `~/Downloads/history/251119_000.json`
+- 같은 날짜에 여러 번 생성하면 000, 001, 002... 순서로 증가
 - 각 파일은 독립적으로 관리되어 특정 이력 삭제/조회가 쉬움
+- 배치 작업(`--all-sheets`) 시에는 모든 과정의 정보가 하나의 파일에 기록됨
 
 ## 프로젝트 구조
 

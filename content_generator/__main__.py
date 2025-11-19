@@ -4,11 +4,122 @@ CLI 진입점
 
 import argparse
 import sys
+import json
 from pathlib import Path
+from datetime import datetime
 
 from .parser import parse_course_file, get_sheet_names
 from .generator import ContentGenerator
 from . import config
+
+
+def _create_batch_log(input_file: str, output_dir: str, template: str, batch_results: list):
+    """배치 작업 로그 생성"""
+    # 입력 파일이 있는 디렉토리의 history/ 폴더에 저장
+    input_path = Path(input_file).resolve()
+    history_dir = input_path.parent / 'history'
+    history_dir.mkdir(parents=True, exist_ok=True)
+
+    # 현재 날짜로 파일명 생성 (YYMMDD_XXX.json)
+    now = datetime.now()
+    date_prefix = now.strftime('%y%m%d')
+
+    # 같은 날짜의 기존 파일 찾기
+    existing_files = list(history_dir.glob(f'{date_prefix}_*.json'))
+
+    if existing_files:
+        numbers = []
+        for f in existing_files:
+            try:
+                num = int(f.stem.split('_')[1])
+                numbers.append(num)
+            except (IndexError, ValueError):
+                continue
+        next_num = max(numbers) + 1 if numbers else 0
+    else:
+        next_num = 0
+
+    filename = f"{date_prefix}_{next_num:03d}.json"
+    history_file = history_dir / filename
+
+    # 배치 로그 데이터
+    courses = []
+    success_count = 0
+    fail_count = 0
+
+    for result in batch_results:
+        if result['status'] == 'success':
+            success_count += 1
+            generator = result['generator']
+
+            # subjects.json 읽기
+            subjects_json = generator._read_subjects_json()
+
+            # 각 차시별 data.json 읽기
+            lessons_with_data = []
+            for lesson in generator.course_data['lessons']:
+                lesson_dir = generator.course_dir / lesson['number']
+                data_json_path = lesson_dir / 'assets' / 'data' / 'data.json'
+
+                data_json = None
+                data_json_valid = False
+
+                if data_json_path.exists():
+                    try:
+                        with open(data_json_path, 'r', encoding='utf-8') as f:
+                            data_json = json.load(f)
+                        data_json_valid = True
+                    except Exception:
+                        data_json_valid = False
+
+                lessons_with_data.append({
+                    "number": lesson['number'],
+                    "title": lesson['title'],
+                    "order": lesson.get('order'),
+                    "video_url": lesson['video_url'],
+                    "has_download": bool(lesson['download_url']),
+                    "data_json_valid": data_json_valid,
+                    "data_json": data_json
+                })
+
+            courses.append({
+                "sheet_name": result['sheet_name'],
+                "course_code": result['course_code'],
+                "subject": generator.course_data['subject'],
+                "status": "success",
+                "total_lessons": generator.course_data['total_lessons'],
+                "chapters": len(generator.course_data['chapters']),
+                "output_dir": str(generator.course_dir),
+                "subjects_json": subjects_json,
+                "lessons": lessons_with_data
+            })
+        else:
+            fail_count += 1
+            courses.append({
+                "sheet_name": result['sheet_name'],
+                "status": "failed",
+                "error": result.get('error', 'Unknown error')
+            })
+
+    log_data = {
+        "generated_at": now.isoformat(),
+        "batch_type": "all_sheets",
+        "input_file": str(input_path),
+        "output_dir": output_dir,
+        "template": template,
+        "total_courses": len(batch_results),
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "courses": courses
+    }
+
+    # 파일 저장
+    with open(history_file, 'w', encoding='utf-8') as f:
+        json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+    history_file.chmod(0o644)
+    print()
+    print(f"📝 배치 작업 이력 저장: {history_file}")
 
 
 def main():
@@ -158,6 +269,7 @@ def main():
             # 각 시트마다 처리
             success_count = 0
             fail_count = 0
+            batch_results = []  # 배치 처리 결과 저장
 
             for sheet in target_sheets:
                 print("=" * 60)
@@ -181,7 +293,7 @@ def main():
                         course_data=course_data,
                         output_dir=args.output,
                         template=args.template,
-                        input_file=f"{args.input} (시트: {sheet})"
+                        input_file=args.input  # 실제 파일 경로 전달
                     )
 
                     generator.generate(dry_run=args.dry_run)
@@ -191,6 +303,14 @@ def main():
                         print()
                         success_count += 1
 
+                        # 배치 결과에 추가
+                        batch_results.append({
+                            "sheet_name": sheet,
+                            "course_code": course_data['course_code'],
+                            "status": "success",
+                            "generator": generator
+                        })
+
                 except Exception as e:
                     print(f"❌ {sheet} 시트 처리 실패: {e}")
                     if args.verbose:
@@ -198,6 +318,14 @@ def main():
                         traceback.print_exc()
                     print()
                     fail_count += 1
+
+                    # 실패한 경우도 기록
+                    batch_results.append({
+                        "sheet_name": sheet,
+                        "course_code": None,
+                        "status": "failed",
+                        "error": str(e)
+                    })
                     continue
 
             # 최종 결과
@@ -207,6 +335,10 @@ def main():
             print(f"   - 실패: {fail_count}개")
             print(f"   - 총: {len(target_sheets)}개")
             print("=" * 60)
+
+            # 배치 작업 로그 생성
+            if not args.dry_run and batch_results:
+                _create_batch_log(args.input, args.output, args.template, batch_results)
 
         # 단일 시트 처리 (기존 로직)
         else:
