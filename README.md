@@ -148,7 +148,7 @@ python3 -m content_generator -i ~/Downloads/25ctvibec.xlsx
 - 멀티 시트 지원 (여러 탭 선택 가능)
 - **전체 시트 일괄 처리 (--all-sheets)** ⭐ NEW
 - **설정 저장 및 재사용 (--save-config, --use-last)** ⭐ NEW
-- **생성 이력 개별 파일 관리 (YYMMDD_XXX.json)** ⭐ NEW
+- **생성 이력 자동 기록 (YYMMDD_HHMM.json)** ⭐ NEW
 - 데이터 검증
 
 ## 설치
@@ -462,28 +462,27 @@ subjects/
     └── ...
 ```
 
-**생성 이력 (개별 파일 관리):** ⭐ NEW
+**생성 이력 (자동 기록):** ⭐ NEW
 
-각 생성마다 개별 파일로 **입력 파일이 있는 디렉토리의 `history/` 폴더**에 저장됩니다.
+각 생성마다 **레포지토리 폴더의 `history/`**에 자동 저장됩니다.
 
-**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호, 000부터 시작)
+**파일명 형식:** `YYMMDD_HHMM.json` (년월일_시분)
 
 **예시:**
 ```
-~/Downloads/              # 입력 파일 위치
-├── courses.xlsx          # 입력 파일
-└── history/              # 생성 이력 폴더
-    ├── 251119_000.json  # 2025년 11월 19일 첫 번째 생성
-    ├── 251119_001.json  # 2025년 11월 19일 두 번째 생성
-    ├── 251119_002.json  # 2025년 11월 19일 세 번째 생성
-    ├── 251120_000.json  # 2025년 11월 20일 첫 번째 생성
-    └── 251120_001.json  # 2025년 11월 20일 두 번째 생성
+content-generator/        # 레포지토리 루트
+├── content_generator/    # 소스 코드
+├── history/              # 생성 이력 폴더 (.gitignore에 포함)
+│   ├── 251119_1007.json  # 2025년 11월 19일 10시 07분 생성
+│   ├── 251119_1425.json  # 2025년 11월 19일 14시 25분 생성
+│   └── 251120_0930.json  # 2025년 11월 20일 09시 30분 생성
+└── README.md
 ```
 
-**파일 내용 예시 (251119_001.json):**
+**파일 내용 예시 (251119_1007.json):**
 ```json
 {
-  "generated_at": "2025-11-19T15:30:45.123456",
+  "generated_at": "2025-11-19T10:07:23.456789",
   "course_code": "25ctvibec",
   "subject": "AI Vibe (바이브) 코딩으로 크롬 확장 프로그램 만들기",
   "total_lessons": 22,
@@ -495,14 +494,14 @@ subjects/
     {
       "number": "01",
       "title": "DEMO 미리보기",
-      "order": 1,
       "video_url": "https://cdn-it.livestudy.com/mov/2025/25ctvibec/25ctvibec_01.mp4",
       "has_download": true
-    },
-    ...
+    }
   ]
 }
 ```
+
+💡 **자세한 내용 확인**: `output/` 폴더의 `subjects.json`과 각 차시의 `data.json`에서 전체 정보를 확인할 수 있습니다.
 
 ## 데이터 형식
 
@@ -716,61 +715,64 @@ python3 -m content_generator --use-last --all-sheets
 
 #### Q9. 언제 어떤 파일로 생성했는지 확인할 수 있나요? ⭐ NEW
 
-A: 각 생성마다 개별 파일로 **입력 파일이 있는 디렉토리의 `history/` 폴더**에 자동 기록됩니다.
+A: 각 생성마다 **레포지토리 폴더의 `history/`**에 자동 기록됩니다.
 
-**파일명 형식:** `YYMMDD_XXX.json` (년월일_일련번호, 000부터 시작)
+**파일명 형식:** `YYMMDD_HHMM.json` (년월일_시분)
 
 ```bash
-# 예시: 입력 파일이 ~/Downloads/courses.xlsx 인 경우
+# 레포지토리 폴더로 이동
+cd content-generator
 
 # 전체 이력 파일 목록 보기
-ls -la ~/Downloads/history/
+ls -la history/
 
 # 결과:
-# 251119_000.json  # 첫 번째 생성
-# 251119_001.json  # 두 번째 생성
-# 251120_000.json  # 다음날 첫 번째 생성
+# 251119_1007.json  # 2025년 11월 19일 10시 07분
+# 251119_1425.json  # 2025년 11월 19일 14시 25분
+# 251120_0930.json  # 2025년 11월 20일 09시 30분
 
 # 오늘 생성한 이력 보기
-ls ~/Downloads/history/$(date +%y%m%d)_*.json
+ls history/$(date +%y%m%d)_*.json
 
 # 특정 파일 내용 보기
-cat ~/Downloads/history/251119_000.json
+cat history/251119_1007.json
 
 # 보기 좋게 출력 (jq 사용)
-cat ~/Downloads/history/251119_000.json | jq .
+cat history/251119_1007.json | jq .
 
 # 배치 작업인 경우 전체 과정 목록 보기
-cat ~/Downloads/history/251119_000.json | jq '.courses[] | {course_code, status, total_lessons}'
+cat history/251119_1007.json | jq '.courses[] | {course_code, status, total_lessons}'
 
 # 모든 이력 파일의 과정 코드만 추출
-for file in ~/Downloads/history/*.json; do
+for file in history/*.json; do
   echo "$(basename $file): $(jq -r '.course_code // .courses[].course_code' $file)"
 done
 
 # 특정 과정 찾기 (grep 사용)
-grep -l "25ctvibec" ~/Downloads/history/*.json
+grep -l "25ctvibec" history/*.json
 
 # 최근 5개 파일 보기
-ls -t ~/Downloads/history/*.json | head -5
+ls -t history/*.json | head -5
 ```
 
-**기록 내용:**
-- 생성 시각
+**기록 내용 (간략한 정보):**
+- 생성 시각 (날짜 + 시간)
 - 과정 코드, 과정명
 - 입력 파일 경로
 - 출력 디렉토리
 - 템플릿 종류
 - 총 차시 수, 챕터 수
-- subjects.json 전체 내용 (배치 작업시)
-- 각 차시별 data.json 내용 및 검증 상태
+- 각 차시별 기본 정보 (번호, 제목, 영상 URL, 다운로드 여부)
 
 **저장 위치:**
-- 입력 파일이 있는 디렉토리의 `history/YYMMDD_XXX.json`
-- 예: 입력 파일이 `~/Downloads/courses.xlsx`이면 → `~/Downloads/history/251119_000.json`
-- 같은 날짜에 여러 번 생성하면 000, 001, 002... 순서로 증가
-- 각 파일은 독립적으로 관리되어 특정 이력 삭제/조회가 쉬움
+- 레포지토리 폴더의 `history/YYMMDD_HHMM.json`
+- Git에서 자동으로 무시됨 (`.gitignore`에 포함)
+- 시간 단위로 구분되어 같은 날 여러 번 실행해도 구분 가능
 - 배치 작업(`--all-sheets`) 시에는 모든 과정의 정보가 하나의 파일에 기록됨
+
+💡 **자세한 내용**: `output/` 폴더의 실제 파일에서 확인하세요
+- `subjects.json`: 전체 과정 구조
+- `{차시}/assets/data/data.json`: 각 차시별 상세 정보
 
 ## 프로젝트 구조
 

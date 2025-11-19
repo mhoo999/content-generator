@@ -301,72 +301,18 @@ class ContentGenerator:
                 data_file.chmod(0o644)
 
     def _create_generation_log(self):
-        """생성 이력 로그 파일 생성 (입력 파일 위치 기준)"""
-        # 입력 파일이 있는 디렉토리의 history/ 폴더에 저장
-        if not self.input_file:
-            return  # 입력 파일 정보가 없으면 로그 생성 안 함
-
-        input_path = Path(self.input_file).resolve()
-        history_dir = input_path.parent / 'history'
+        """생성 이력 로그 파일 생성 (레포지토리 폴더)"""
+        # 레포지토리 루트 경로 찾기 (__file__의 2단계 상위)
+        repo_root = Path(__file__).parent.parent
+        history_dir = repo_root / 'history'
         history_dir.mkdir(parents=True, exist_ok=True)
 
-        # 현재 날짜로 파일명 생성 (YYMMDD_XXX.json)
+        # 현재 날짜+시간으로 파일명 생성 (YYMMDD_HHMM.json)
         now = datetime.now()
-        date_prefix = now.strftime('%y%m%d')  # 예: 251119
-
-        # 같은 날짜의 기존 파일 찾기
-        existing_files = list(history_dir.glob(f'{date_prefix}_*.json'))
-
-        if existing_files:
-            # 마지막 번호 찾기
-            numbers = []
-            for f in existing_files:
-                # 251119_000.json -> 000 추출
-                try:
-                    num = int(f.stem.split('_')[1])
-                    numbers.append(num)
-                except (IndexError, ValueError):
-                    continue
-
-            next_num = max(numbers) + 1 if numbers else 0
-        else:
-            next_num = 0  # 첫 번째는 000부터 시작
-
-        # 파일명 생성 (예: 251119_000.json)
-        filename = f"{date_prefix}_{next_num:03d}.json"
+        filename = now.strftime('%y%m%d_%H%M.json')  # 예: 251119_1007.json
         history_file = history_dir / filename
 
-        # subjects.json 내용 읽기
-        subjects_json = self._read_subjects_json()
-
-        # 각 차시별 data.json 내용 읽기
-        lessons_with_data = []
-        for lesson in self.course_data['lessons']:
-            lesson_dir = self.course_dir / lesson['number']
-            data_json_path = lesson_dir / 'assets' / 'data' / 'data.json'
-
-            data_json = None
-            data_json_valid = False
-
-            if data_json_path.exists():
-                try:
-                    with open(data_json_path, 'r', encoding='utf-8') as f:
-                        data_json = json.load(f)
-                    data_json_valid = True
-                except Exception:
-                    data_json_valid = False
-
-            lessons_with_data.append({
-                "number": lesson['number'],
-                "title": lesson['title'],
-                "order": lesson.get('order'),
-                "video_url": lesson['video_url'],
-                "has_download": bool(lesson['download_url']),
-                "data_json_valid": data_json_valid,
-                "data_json": data_json
-            })
-
-        # 이력 데이터
+        # 이력 데이터 (간략한 정보만)
         log_data = {
             "generated_at": now.isoformat(),
             "course_code": self.course_code,
@@ -374,10 +320,17 @@ class ContentGenerator:
             "total_lessons": self.course_data['total_lessons'],
             "chapters": len(self.course_data['chapters']),
             "template": self.template,
-            "input_file": str(input_path),
+            "input_file": self.input_file,
             "output_dir": str(self.course_dir),
-            "subjects_json": subjects_json,
-            "lessons": lessons_with_data
+            "lessons": [
+                {
+                    "number": lesson['number'],
+                    "title": lesson['title'],
+                    "video_url": lesson['video_url'],
+                    "has_download": bool(lesson['download_url'])
+                }
+                for lesson in self.course_data['lessons']
+            ]
         }
 
         # 파일 저장
@@ -386,16 +339,3 @@ class ContentGenerator:
 
         history_file.chmod(0o644)
         print(f"📝 생성 이력 저장: {history_file}")
-
-    def _read_subjects_json(self):
-        """subjects.json 파일 읽기"""
-        subjects_file = self.course_dir / 'subjects.json'
-
-        if not subjects_file.exists():
-            return None
-
-        try:
-            with open(subjects_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return None
