@@ -301,8 +301,14 @@ class ContentGenerator:
                 data_file.chmod(0o644)
 
     def _create_generation_log(self):
-        """생성 이력 로그 파일 생성"""
-        log_data = {
+        """생성 이력 로그 파일 생성 (중앙 집중식)"""
+        # ~/.content-generator/ 폴더에 저장
+        log_dir = Path.home() / '.content-generator'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        history_file = log_dir / 'history.json'
+
+        # 새 이력 데이터
+        log_entry = {
             "generated_at": datetime.now().isoformat(),
             "course_code": self.course_code,
             "subject": self.course_data['subject'],
@@ -310,7 +316,7 @@ class ContentGenerator:
             "chapters": len(self.course_data['chapters']),
             "template": self.template,
             "input_file": self.input_file,
-            "output_dir": str(self.output_dir),
+            "output_dir": str(self.course_dir),
             "lessons": [
                 {
                     "number": lesson['number'],
@@ -323,9 +329,19 @@ class ContentGenerator:
             ]
         }
 
-        log_file = self.course_dir / '.generation_log.json'
-        with open(log_file, 'w', encoding='utf-8') as f:
-            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        # 기존 이력 불러오기
+        if history_file.exists():
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        else:
+            history = []
 
-        log_file.chmod(0o644)
-        print(f"📝 생성 이력 저장 완료: .generation_log.json")
+        # 새 이력 추가
+        history.append(log_entry)
+
+        # 저장 (최신 이력이 마지막에)
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+
+        history_file.chmod(0o644)
+        print(f"📝 생성 이력 저장: {history_file}")
